@@ -12,7 +12,7 @@
 #define BUFSIZE 4096
 #define SOCKETERROR (-1)
 #define SERVER_BACKLOG 100
-#define THREAD_POOL_SIZE 20
+#define THREAD_POOL_SIZE 10
 
 pthread_t thread_pool[THREAD_POOL_SIZE];
 pthread_mutex_t mutex = PTHREAD_MUTEX_INITIALIZER;
@@ -31,11 +31,12 @@ int main(int argc, char **argv)
     int server_socket, client_socket, addr_size;
     SA_IN server_addr, client_addr;
 
-    // first off cread a bunch of threads
+    // first off create a bunch of threads
     for (int i = 0; i < THREAD_POOL_SIZE; i++)
     {
         pthread_create(&thread_pool[i], NULL, thread_function, NULL);
     }
+
     server_socket = socket(AF_INET, SOCK_STREAM, 0);
     if (server_socket < 0)
     {
@@ -68,6 +69,7 @@ int main(int argc, char **argv)
             return 3;
         }
 
+        printf("got connection on socket %d\n", client_socket);
         // put the conncetion somewhere
 
         // do whatever we do with connections,
@@ -127,34 +129,20 @@ void *handle_connection(void *p_client_socket)
         }
     }
     check(bytes_read, "recv error");
+    buffer[0] = 's';
+    buffer[1] = 'e';
+    buffer[2] = 'r';
+    buffer[3] = 'v';
+    buffer[4] = 'e';
+    buffer[5] = 'r';
+    buffer[6] = ' ';
+    buffer[7] = 'h';
+    buffer[8] = 'i';
+    send(client_socket, buffer, sizeof(buffer), 0);
     buffer[msgsize - 1] = 0; // null terminate the message and remove the \n
     printf("REQUEST: %s\n", buffer);
-    fflush(stdout);
 
-    // validity check
-    if (realpath(buffer, actualpath) == NULL)
-    {
-        printf("ERROR bad path : %s\n", buffer);
-        close(client_socket);
-        return NULL;
-    }
-
-    FILE *fp = fopen(actualpath, "r");
-    if (fp == NULL)
-    {
-        printf("ERROR bad path : %s\n", buffer);
-        close(client_socket);
-        return NULL;
-    }
-
-    // read file contents
-    while ((bytes_read = fread(buffer, 1, BUFSIZE, fp)) > 0)
-    {
-        printf("sending %zu bytes\n", bytes_read);
-        write(client_socket, buffer, bytes_read);
-    }
     close(client_socket);
-    fclose(fp);
     printf("closing connection\n");
     // done
 }
